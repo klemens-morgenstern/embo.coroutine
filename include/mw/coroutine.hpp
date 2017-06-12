@@ -116,7 +116,7 @@ template<typename Return, typename PushType>
 inline Return make_context(impl * const this_, void* target, void * exec, PushType value)
 {
     return static_cast<Return>(
-        make_context_t<Return, PushType>::invoke(static_cast<PushType>(value), this_)
+        make_context_t<Return, PushType>::invoke(this_, target, exec, static_cast<PushType>(value))
             );
 }
 
@@ -124,7 +124,7 @@ template<typename Return>
 inline Return make_context(impl * const this_, void* target, void * exec)
 {
     return static_cast<Return>(
-        make_context_t<Return, void>::invoke(this_)
+        make_context_t<Return, void>::invoke(this_, target, exec)
             );
 }
 
@@ -273,6 +273,265 @@ public:
     friend class coroutine;
 };
 
+template<typename Return, typename PushType>
+class coroutine<Return(PushType)> : ::mw::detail::coroutine::impl
+{
+    static_assert(mw::detail::coroutine::is_valid_type_t<Return>::value,   "The return type must either be a 64-bit integral type or a 32-bit compound type");
+
+    bool _started = false;
+    bool _exited  = false;
+
+    template<typename T>
+    friend struct yield_t;
+
+public:
+
+    typedef Return return_type;
+    typedef PushType push_type;
+    typedef yield_t<Return()> yield_type;
+
+    template<typename StackContainer>
+    coroutine(StackContainer & sc) : ::mw::detail::coroutine::impl(
+            {
+                reinterpret_cast<std::uintptr_t>(sc.data() + sc.size()) - sizeof(std::uint32_t),
+                reinterpret_cast<std::uintptr_t>(sc.data()),
+                reinterpret_cast<std::uintptr_t>(sc.data() + sc.size())
+            }
+            )
+    {}
+
+    coroutine(const coroutine & cr) = delete;
+    coroutine(coroutine && cr) = default;
+
+    coroutine& operator=(const coroutine & cr) = delete;
+    coroutine& operator=(coroutine && cr) = default;
+
+
+    template<typename StackContainer>
+    coroutine fork(StackContainer & sc)
+    {
+        coroutine cr(sc);
+        cr._stack_ptr = cr._stack_end - (_stack_end - _stack_ptr);
+        std::copy(_stack_ptr, _stack_end, cr._stack_ptr);
+        return cr;
+    }
+
+    PushType yield_(Return ret)
+    {
+        return static_cast<PushType>(mw::detail::coroutine::switch_context(this, static_cast<Return>(ret)));
+    }
+
+    Return reenter(PushType pt)
+    {
+        return mw::detail::coroutine::switch_context<Return>(this, static_cast<PushType>(pt));
+    }
+
+    template<typename Function>
+    Return spawn(Function && func)
+    {
+        auto executor = +[](coroutine * const this_, typename std::remove_reference<Function>::type *func_p)
+        {
+            this_->_started = true;
+            Function func = std::forward<Function>(*func_p);
+            Return val = static_cast<Return>(func({this_}));
+
+            this_->_exited = true;
+            return mw::detail::coroutine::switch_context(static_cast<Return>(val), this_);
+        };
+        return static_cast<Return>(mw::detail::coroutine::make_context<Return>(this, &func, reinterpret_cast<void*>(executor)));
+    }
+
+    template<typename Function>
+    Return spawn(Function && func, PushType pt)
+    {
+        auto executor = +[](coroutine * const this_, typename std::remove_reference<Function>::type *func_p, PushType pt)
+        {
+            this_->_started = true;
+            Function func = std::forward<Function>(*func_p);
+            Return val = static_cast<Return>(func({this_}, static_cast<PushType>(pt)));
+
+            this_->_exited = true;
+            return mw::detail::coroutine::switch_context(static_cast<Return>(val), this_);
+        };
+        return static_cast<Return>(mw::detail::coroutine::make_context<Return, PushType>(
+                this, &func,
+                reinterpret_cast<void*>(executor),
+                static_cast<PushType>(pt)));
+    }
+
+    Return spawn(return_type(&func)(yield_type)) {return static_cast<Return>(spawn(&func));}
+    Return spawn(return_type(*func)(yield_type))
+    {
+        auto executor = +[](coroutine * const this_, return_type(*func)(yield_type))
+        {
+            this_->_started = true;
+            Return val = static_cast<Return>(func(yield_type{this_}));
+            this_->_exited = true;
+
+            return mw::detail::coroutine::switch_context(static_cast<Return>(val), this_);
+        };
+        return mw::detail::coroutine::make_context<Return>(this, func, reinterpret_cast<void*>(executor));
+    }
+
+    Return spawn(return_type(&func)(yield_type), Return rt) {return static_cast<Return>(spawn(&func), static_cast<Return>(rt));}
+    Return spawn(return_type(*func)(yield_type), Return rt)
+    {
+        auto executor = +[](coroutine * const this_, return_type(*func)(yield_type), Return rt)
+        {
+            this_->_started = true;
+            Return val = static_cast<Return>(func({this_}, static_cast<Return>(rt)));
+            this_->_exited = true;
+
+            return mw::detail::coroutine::switch_context(static_cast<Return>(val), this_);
+        };
+        return mw::detail::coroutine::make_context<Return>(this, func, reinterpret_cast<void*>(executor), static_cast<Return>(rt));
+    }
+
+    Return operator()(PushType pt){return reenter(static_cast<PushType>(pt));}
+
+    bool started() const {return _started;}
+    bool  exited() const {return _exited;}
+
+    std::uint32_t stack_ptr () const { return _stack_ptr; }
+    std::size_t   stack_size() const { return _stack_end - _stack_begin; }
+    std::size_t   stack_used() const { return _stack_end - _stack_ptr - sizeof(std::uint32_t); }
+    std::size_t   stack_left() const { return _stack_begin >= _stack_ptr ? 0ul : (_stack_ptr - _stack_begin); }
+};
+
+
+template<typename PushType>
+class coroutine<void(PushType)> : ::mw::detail::coroutine::impl
+{
+    bool _started = false;
+    bool _exited  = false;
+
+    template<typename T>
+    friend struct yield_t;
+
+public:
+
+    typedef void return_type;
+    typedef void push_type;
+    typedef yield_t<void()> yield_type;
+
+    template<typename StackContainer>
+    coroutine(StackContainer & sc) : ::mw::detail::coroutine::impl(
+            {
+                reinterpret_cast<std::uintptr_t>(sc.data() + sc.size()) - sizeof(std::uint32_t),
+                reinterpret_cast<std::uintptr_t>(sc.data()),
+                reinterpret_cast<std::uintptr_t>(sc.data() + sc.size())
+            }
+            )
+    {}
+
+    coroutine(const coroutine & cr) = delete;
+    coroutine(coroutine && cr) = default;
+
+    coroutine& operator=(const coroutine & cr) = delete;
+    coroutine& operator=(coroutine && cr) = default;
+
+
+    template<typename StackContainer>
+    coroutine fork(StackContainer & sc)
+    {
+        coroutine cr(sc);
+        cr._stack_ptr = cr._stack_end - (_stack_end - _stack_ptr);
+        std::copy(_stack_ptr, _stack_end, cr._stack_ptr);
+        return cr;
+    }
+
+    PushType yield_()
+    {
+        return static_cast<PushType>(mw::detail::coroutine::switch_context<PushType>(this));
+    }
+
+    void reenter(PushType pt)
+    {
+        mw::detail::coroutine::switch_context<void>( static_cast<PushType>(pt), this);
+    }
+
+    template<typename Function>
+    void spawn(Function && func)
+    {
+        auto executor = +[](coroutine * const this_, typename std::remove_reference<Function>::type *func_p)
+        {
+            this_->_started = true;
+            Function func = static_cast<Function>(*func_p);
+            func({this_});
+            this_->_exited = true;
+
+            mw::detail::coroutine::switch_context<void>(this_);
+        };
+        mw::detail::coroutine::make_context<void>(
+                this,
+                reinterpret_cast<void*>(&func),
+                reinterpret_cast<void*>(executor));
+    }
+
+
+    template<typename Function>
+    void spawn(Function && func, PushType pt)
+    {
+        auto executor = +[](coroutine * const this_, typename std::remove_reference<Function>::type *func_p, PushType pt)
+        {
+            this_->_started = true;
+            Function func = static_cast<Function>(*func_p);
+            func({this_}, static_cast<PushType>(pt));
+            this_->_exited = true;
+
+            mw::detail::coroutine::switch_context<void>(this_);
+        };
+        mw::detail::coroutine::make_context<void, PushType>(
+                this,
+                reinterpret_cast<void*>(&func),
+                reinterpret_cast<void*>(executor),
+                static_cast<PushType>(pt));
+    }
+
+    void spawn(return_type(&func)(yield_type)) {spawn(&func);}
+    void spawn(return_type(*func)(yield_type))
+    {
+        auto executor = +[](coroutine * const this_, return_type(*func)(yield_type))
+        {
+            this_->_started = true;
+            func({this_});
+            this_->_exited = true;
+
+            mw::detail::coroutine::switch_context<void>(this_);
+        };
+        mw::detail::coroutine::make_context<void>(this, reinterpret_cast<void*>(func), reinterpret_cast<void*>(executor));
+    }
+
+    void spawn(return_type(&func)(yield_type, PushType), PushType pt) {spawn(&func, static_cast<PushType>(pt));}
+    void spawn(return_type(*func)(yield_type, PushType), PushType pt)
+    {
+        auto executor = +[](coroutine * const this_, return_type(*func)(yield_type), PushType pt)
+        {
+            this_->_started = true;
+            func({this_}, static_cast<PushType>(pt));
+            this_->_exited = true;
+
+            mw::detail::coroutine::switch_context<void>(this_);
+        };
+        mw::detail::coroutine::make_context<void, PushType>(
+                this,
+                reinterpret_cast<void*>(func),
+                reinterpret_cast<void*>(executor),
+                static_cast<PushType>(pt));
+    }
+
+    void operator()(PushType pt){reenter(static_cast<PushType>(pt));}
+
+    bool started() const {return _started;}
+    bool  exited() const {return _exited;}
+
+    std::uint32_t stack_ptr () const { return _stack_ptr; }
+    std::size_t   stack_size() const { return _stack_end - _stack_begin; }
+    std::size_t   stack_used() const { return _stack_end - _stack_ptr - sizeof(std::uint32_t); }
+    std::size_t   stack_left() const { return _stack_begin >= _stack_ptr ? 0ul : (_stack_ptr - _stack_begin); }
+};
+
+
 template<typename Return>
 class coroutine<Return()> : ::mw::detail::coroutine::impl
 {
@@ -318,7 +577,7 @@ public:
 
     void yield_(Return ret)
     {
-        mw::detail::coroutine::switch_context(this, static_cast<Return>(ret));
+        mw::detail::coroutine::switch_context<Return>(static_cast<Return>(ret), this);
     }
 
     Return reenter()
@@ -329,14 +588,14 @@ public:
     template<typename Function>
     Return spawn(Function && func)
     {
-        auto executor = +[](coroutine * const this_, Function *func_p)
+        auto executor = +[](coroutine * const this_, typename std::remove_reference<Function>::type *func_p)
         {
             this_->_started = true;
             Function func = std::forward<Function>(*func_p);
-            Return val = static_cast<Return>(func(yield_type{this_}));
+            Return val = static_cast<Return>(func({this_}));
 
             this_->_exited = true;
-            return mw::detail::coroutine::switch_context(this_, static_cast<Return>(val));
+            return mw::detail::coroutine::switch_context<Return>(static_cast<Return>(val), this_);
         };
         return mw::detail::coroutine::make_context<Return>(this, &func, reinterpret_cast<void*>(executor));
     }
@@ -350,7 +609,7 @@ public:
             Return val = static_cast<Return>(func(yield_type{this_}));
             this_->_exited = true;
 
-            return mw::detail::coroutine::switch_context(this_, static_cast<Return>(val));
+            return mw::detail::coroutine::switch_context(static_cast<Return>(val), this_);
         };
         return mw::detail::coroutine::make_context<Return>(this, func, reinterpret_cast<void*>(executor));
     }
@@ -362,7 +621,7 @@ public:
 
     std::uint32_t stack_ptr () const { return _stack_ptr; }
     std::size_t   stack_size() const { return _stack_end - _stack_begin; }
-    std::size_t   stack_used() const { return _stack_end - _stack_ptr + sizeof(std::uint32_t); }
+    std::size_t   stack_used() const { return _stack_end - _stack_ptr - sizeof(std::uint32_t); }
     std::size_t   stack_left() const { return _stack_begin >= _stack_ptr ? 0ul : (_stack_ptr - _stack_begin); }
 };
 
@@ -454,10 +713,9 @@ public:
 
     std::uint32_t stack_ptr () const { return _stack_ptr; }
     std::size_t   stack_size() const { return _stack_end - _stack_begin; }
-    std::size_t   stack_used() const { return _stack_end - _stack_ptr + sizeof(std::uint32_t); }
+    std::size_t   stack_used() const { return _stack_end - _stack_ptr - sizeof(std::uint32_t); }
     std::size_t   stack_left() const { return _stack_begin >= _stack_ptr ? 0ul : (_stack_ptr - _stack_begin); }
 };
-
 
 
 template<typename Return, typename PushType>
