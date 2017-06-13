@@ -17,7 +17,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <utility>
 #include <type_traits>
 #include <algorithm>
 
@@ -300,6 +299,16 @@ public:
             )
     {}
 
+    template<typename T, std::size_t Size>
+    coroutine(T(&sc)[Size]) : ::mw::detail::coroutine::impl(
+            {
+                reinterpret_cast<std::uintptr_t>(sc + Size) - sizeof(std::uint32_t),
+                reinterpret_cast<std::uintptr_t>(sc),
+                reinterpret_cast<std::uintptr_t>(sc + Size)
+            }
+            )
+    {}
+
     coroutine(const coroutine & cr) = delete;
     coroutine(coroutine && cr) = default;
 
@@ -318,12 +327,12 @@ public:
 
     PushType yield_(Return ret)
     {
-        return static_cast<PushType>(mw::detail::coroutine::switch_context(this, static_cast<Return>(ret)));
+        return static_cast<PushType>(mw::detail::coroutine::switch_context<PushType, Return>(static_cast<Return>(ret), this));
     }
 
     Return reenter(PushType pt)
     {
-        return mw::detail::coroutine::switch_context<Return>(this, static_cast<PushType>(pt));
+        return mw::detail::coroutine::switch_context<Return, PushType>(static_cast<PushType>(pt), this);
     }
 
     template<typename Function>
@@ -336,7 +345,7 @@ public:
             Return val = static_cast<Return>(func({this_}));
 
             this_->_exited = true;
-            return mw::detail::coroutine::switch_context(static_cast<Return>(val), this_);
+            return mw::detail::coroutine::switch_context<PushType, Return>(static_cast<Return>(val), this_);
         };
         return static_cast<Return>(mw::detail::coroutine::make_context<Return>(this, &func, reinterpret_cast<void*>(executor)));
     }
@@ -420,6 +429,16 @@ public:
                 reinterpret_cast<std::uintptr_t>(sc.data() + sc.size()) - sizeof(std::uint32_t),
                 reinterpret_cast<std::uintptr_t>(sc.data()),
                 reinterpret_cast<std::uintptr_t>(sc.data() + sc.size())
+            }
+            )
+    {}
+
+    template<typename T, std::size_t Size>
+    coroutine(T(&sc)[Size]) : ::mw::detail::coroutine::impl(
+            {
+                reinterpret_cast<std::uintptr_t>(sc + Size) - sizeof(std::uint32_t),
+                reinterpret_cast<std::uintptr_t>(sc),
+                reinterpret_cast<std::uintptr_t>(sc + Size)
             }
             )
     {}
@@ -559,6 +578,16 @@ public:
             )
     {}
 
+    template<typename T, std::size_t Size>
+    coroutine(T(&sc)[Size]) : ::mw::detail::coroutine::impl(
+            {
+                reinterpret_cast<std::uintptr_t>(sc + Size) - sizeof(std::uint32_t),
+                reinterpret_cast<std::uintptr_t>(sc),
+                reinterpret_cast<std::uintptr_t>(sc + Size)
+            }
+            )
+    {}
+
     coroutine(const coroutine & cr) = delete;
     coroutine(coroutine && cr) = default;
 
@@ -650,6 +679,17 @@ public:
             }
             )
     {}
+
+    template<typename T, std::size_t Size>
+    coroutine(T(&sc)[Size]) : ::mw::detail::coroutine::impl(
+            {
+                reinterpret_cast<std::uintptr_t>(sc + Size) - sizeof(std::uint32_t),
+                reinterpret_cast<std::uintptr_t>(sc),
+                reinterpret_cast<std::uintptr_t>(sc + Size)
+            }
+            )
+    {}
+
 
     coroutine(const coroutine & cr) = delete;
     coroutine(coroutine && cr) = default;

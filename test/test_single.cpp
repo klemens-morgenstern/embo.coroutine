@@ -17,13 +17,11 @@
 #include <mw/test/calltrace.hpp>
 #include <mw/coroutine.hpp>
 
-#include <stdio.h>
-
 void empty_plain()
 {
     static int i = 0;
 
-    std::array<std::uint32_t, 128> stack1;
+    std::uint32_t stack1[128];
     mw::coroutine<void()> cr1{stack1};
     auto cr1_func = +[](mw::yield_t<void()> yield_)
             {
@@ -59,7 +57,7 @@ void empty_lambda()
 {
     int j = 0;
 
-    std::array<std::uint32_t, 128> stack2;
+    std::uint32_t stack2[128];
     mw::coroutine<void()> cr2{stack2};
     auto cr2_func = [&j](mw::yield_t<void()> yield_)
             {
@@ -99,12 +97,12 @@ void empty_lambda()
 
 void simple_stack()
 {
-    std::array<std::uint32_t, 128> stack;
+    std::uint32_t stack[128];
     mw::coroutine<void()> cr{stack};
 
     {
         volatile auto sl = cr.stack_left();
-        auto se = reinterpret_cast<std::uint32_t>(stack.data() + 127);
+        auto se = reinterpret_cast<std::uint32_t>(stack + 127);
         MW_ASSERT_EQUAL(sl, 127*4);
         sl = cr.stack_ptr() ; MW_ASSERT_EQUAL(sl, se);
         sl = cr.stack_size(); MW_ASSERT_EQUAL(sl, 128*4);
@@ -168,11 +166,11 @@ void simple_stack()
 
 void push_32_no_start()
 {
-    std::array<std::uint32_t, 128> stack;
+    std::uint32_t stack[128];
     mw::coroutine<void(std::int32_t)> cr{stack};
 
-    std::array<std::int32_t, 3> out = {0,0,0};
-    auto itr = out.begin();
+    std::int32_t out[3] = {0,0,0};
+    auto *itr = out;
 
     auto f = [&](mw::yield_t<void(std::int32_t)> yield_)
          {
@@ -197,11 +195,11 @@ void push_32_no_start()
 
 void push_32_start()
 {
-    std::array<std::uint32_t, 128> stack;
+    std::uint32_t stack[128];
     mw::coroutine<void(std::int32_t)> cr{stack};
 
-    std::array<std::int32_t, 3> out = {0,0,0};
-    auto itr = out.begin();
+    std::int32_t out[3] = {0,0,0};
+    auto *itr = out;
 
     auto f = [&](mw::yield_t<void(std::int32_t)> yield_, std::int32_t input)
          {
@@ -224,11 +222,11 @@ void push_32_start()
 
 void push_64_no_start()
 {
-    std::array<std::uint32_t, 128> stack;
+    std::uint32_t stack[128];
     mw::coroutine<void(std::int64_t)> cr{stack};
 
-    std::array<std::int64_t, 3> out = {0,0,0};
-    auto itr = out.begin();
+    std::int64_t out[3] = {0,0,0};
+    auto *itr = out;
 
     auto f = [&](mw::yield_t<void(std::int64_t)> yield_)
          {
@@ -253,11 +251,11 @@ void push_64_no_start()
 
 void push_64_start()
 {
-    std::array<std::uint32_t, 128> stack;
+    std::uint32_t stack[128];
     mw::coroutine<void(std::int64_t)> cr{stack};
 
-    std::array<std::int64_t, 3> out = {0,0,0};
-    auto itr = out.begin();
+    std::int64_t out[3] = {0,0,0};
+    auto *itr = out;
 
     auto f = [&](mw::yield_t<void(std::int64_t)> yield_, std::int64_t input)
          {
@@ -266,21 +264,21 @@ void push_64_start()
             *(itr++) = yield_();
          };
 
-    cr.spawn(f, 0x1234567890ABCDEF);
+    cr.spawn(f, 0x1234567890ABCDEFll);
 
-    cr.reenter(0xF1234567890ABCDE);
-    cr.reenter(0xEF1234567890ABCD);
+    cr.reenter(0xF1234567890ABCDEll);
+    cr.reenter(0xEF1234567890ABCDll);
 
     volatile std::int64_t it;
 
-    it = out[0]; MW_ASSERT_EQUAL(0x1234567890ABCDEF, it);
-    it = out[1]; MW_ASSERT_EQUAL(0xF1234567890ABCDE, it);
-    it = out[2]; MW_ASSERT_EQUAL(0xEF1234567890ABCD, it);
+    it = out[0]; MW_ASSERT_EQUAL(0x1234567890ABCDEFll, it);
+    it = out[1]; MW_ASSERT_EQUAL(0xF1234567890ABCDEll, it);
+    it = out[2]; MW_ASSERT_EQUAL(0xEF1234567890ABCDll, it);
 }
 
 void pull_32()
 {
-    std::array<std::uint32_t, 128> stack;
+    std::uint32_t stack[128];
     mw::coroutine<std::int32_t()> cr{stack};
 
     auto f = [](mw::yield_t<std::int32_t()> yield_)
@@ -298,20 +296,74 @@ void pull_32()
 
 void pull_64()
 {
-    std::array<std::uint32_t, 128> stack;
+    std::uint32_t stack[128];
     mw::coroutine<std::int64_t()> cr{stack};
 
     auto f = [](mw::yield_t<std::int64_t()> yield_)
          {
-            yield_(0x1234567890ABCD42);
-            yield_(0x1234567890ABCD24);
-            return 0x1234567890ABCD78;
+            yield_(0x1234567890ABCD42ll);
+            yield_(0x1234567890ABCD24ll);
+            return 0x1234567890ABCD78ll;
          };
 
-    volatile auto val = cr.spawn(f); MW_ASSERT_EQUAL(val, 0x1234567890ABCD42);
-    val = cr.reenter(); MW_ASSERT_EQUAL(val, 0x1234567890ABCD24);
-    val = cr.reenter(); MW_ASSERT_EQUAL(val, 0x1234567890ABCD78);
+    volatile auto val = cr.spawn(f); MW_ASSERT_EQUAL(val, 0x1234567890ABCD42ll);
+    val = cr.reenter(); MW_ASSERT_EQUAL(val, 0x1234567890ABCD24ll);
+    val = cr.reenter(); MW_ASSERT_EQUAL(val, 0x1234567890ABCD78ll);
     MW_ASSERT(cr.exited());
+}
+
+void push_pull_32()
+{
+    std::uint32_t stack[128];
+    mw::coroutine<std::int32_t(std::int32_t)> cr{stack};
+
+    auto f = +[](mw::yield_t<std::int32_t(std::int32_t)> yield_)
+        {
+            auto val = yield_(42);
+            MW_ASSERT_EQUAL(val, 7);
+            val = yield_(val + 5);
+
+            MW_ASSERT_EQUAL(val, 24);
+
+            return val - 5;
+        };
+
+    auto val = cr.spawn(f);
+
+    MW_ASSERT_EQUAL(val, 42);
+    val = cr.reenter(val-35);
+
+    MW_ASSERT_EQUAL(val, 12);
+
+    val = cr.reenter(val *2);
+    MW_ASSERT_EQUAL(val, 19);
+}
+
+void push_pull_64()
+{
+    std::uint32_t stack[128];
+    mw::coroutine<std::int64_t(std::int64_t)> cr{stack};
+
+    auto f = +[](mw::yield_t<std::int64_t(std::int64_t)> yield_)
+        {
+            auto val = yield_(42);
+            MW_ASSERT_EQUAL(val, 7);
+            val = yield_(val + 5);
+
+            MW_ASSERT_EQUAL(val, 24);
+
+            return val - 5;
+        };
+
+    auto val = cr.spawn(f);
+
+    MW_ASSERT_EQUAL(val, 42);
+    val = cr.reenter(val-35);
+
+    MW_ASSERT_EQUAL(val, 12);
+
+    val = cr.reenter(val *2);
+    MW_ASSERT_EQUAL(val, 19);
 }
 
 int main(int argc, char * argv[])
@@ -325,5 +377,7 @@ int main(int argc, char * argv[])
     MW_CALL(&push_64_start, "testing pushing 64-bit value with an initial value");
     MW_CALL(&pull_32, "pull 32-bit values from the coroutine");
     MW_CALL(&pull_64, "pull 64-bit values from the coroutine");
+    MW_CALL(&push_pull_32, "push pull 32 bit values");
+    MW_CALL(&push_pull_64, "push pull 64 bit values");
     return MW_REPORT();
 }
