@@ -1,29 +1,20 @@
 /**
- * @file   mw/coroutine.hpp
+ * @file   embo/coroutine.hpp
  * @date   09.06.2017
  * @author Klemens D. Morgenstern
  *
  * Published under [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html)
-  <pre>
-    /  /|  (  )   |  |  /
-   /| / |   \/    | /| /
-  / |/  |   /\    |/ |/
- /  /   |  (  \   /  |
-               )
- </pre>
  */
-#ifndef MW_COROUTINE_HPP_
-#define MW_COROUTINE_HPP_
+#ifndef EMBO_COROUTINE_HPP_
+#define EMBO_COROUTINE_HPP_
 
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
 #include <algorithm>
 
-namespace mw
+namespace embo
 {
-
-
 
 namespace detail
 {
@@ -56,13 +47,13 @@ using is_valid_type_t
 extern "C"
 {
 
-std::uint32_t __mw_make_context_0(impl * const, void * target, void * executor);
-std::uint32_t __mw_make_context_1(impl * const, void * target, void * executor, std::uint32_t  value);
-std::uint32_t __mw_make_context_2(impl * const, void * target, void * executor, std::uint64_t *value);
+std::uint32_t __embo_make_context_0(impl * const, void * target, void * executor);
+std::uint32_t __embo_make_context_1(impl * const, void * target, void * executor, std::uint32_t  value);
+std::uint32_t __embo_make_context_2(impl * const, void * target, void * executor, std::uint64_t *value);
 
-std::uint32_t __mw_switch_context_0(impl * const);
-std::uint32_t __mw_switch_context_1(std::uint32_t, impl * const);
-std::uint32_t __mw_switch_context_2(std::uint64_t, impl * const);
+std::uint32_t __embo_switch_context_0(impl * const);
+std::uint32_t __embo_switch_context_1(std::uint32_t, impl * const);
+std::uint32_t __embo_switch_context_2(std::uint64_t, impl * const);
 
 }
 
@@ -73,7 +64,7 @@ struct make_context_t
     static Return invoke(impl * const ptr, void* target, void* executor, PushType value)
     {
         using func_t = Return(impl * const, void *, void *, PushType);
-        auto make_context = reinterpret_cast<func_t*>(&__mw_make_context_1);
+        auto make_context = reinterpret_cast<func_t*>(&__embo_make_context_1);
         return static_cast<Return>(make_context(ptr, target, executor, static_cast<PushType>(value)));
     }
 };
@@ -84,7 +75,7 @@ struct make_context_t<Return, PushType, true>
     static Return invoke(impl * const ptr, void* target, void* executor, PushType value)
     {
         using func_t = Return(impl * const, void*, void*, PushType*);
-        auto make_context = reinterpret_cast<func_t*>(&__mw_make_context_2);
+        auto make_context = reinterpret_cast<func_t*>(&__embo_make_context_2);
         return static_cast<Return>(make_context(ptr, target, executor, &value));
     }
 };
@@ -95,7 +86,7 @@ struct make_context_t<Return, void, false>
     static Return invoke(impl * const ptr, void * target, void * executor)
     {
         using func_t = Return(impl * const, void*, void*);
-        auto make_context = reinterpret_cast<func_t*>(&__mw_make_context_0);
+        auto make_context = reinterpret_cast<func_t*>(&__embo_make_context_0);
         return static_cast<Return>(make_context(ptr, target, executor));
     }
 };
@@ -106,7 +97,7 @@ struct make_context_t<void, void, false>
     static void invoke(impl * const ptr, void * target, void * executor)
     {
         using func_t = void(impl * const, void*, void*);
-        auto make_context = reinterpret_cast<func_t*>(&__mw_make_context_0);
+        auto make_context = reinterpret_cast<func_t*>(&__embo_make_context_0);
         make_context(ptr, target, executor);
     }
 };
@@ -141,7 +132,7 @@ struct switch_context_t
     static Return invoke(PushType value, impl * const ptr)
     {
         using func_t = Return(PushType, impl * const);
-        auto switch_context = reinterpret_cast<func_t*>(&__mw_switch_context_1);
+        auto switch_context = reinterpret_cast<func_t*>(&__embo_switch_context_1);
         return static_cast<Return>(switch_context(static_cast<PushType>(value), ptr));
     }
 };
@@ -152,7 +143,7 @@ struct switch_context_t<Return, PushType, true>
     static Return invoke(PushType value, impl * const ptr)
     {
         using func_t = Return(PushType, impl * const);
-        auto switch_context = reinterpret_cast<func_t*>(&__mw_switch_context_2);
+        auto switch_context = reinterpret_cast<func_t*>(&__embo_switch_context_2);
         return static_cast<Return>(switch_context(static_cast<PushType>(value), ptr));
     }
 };
@@ -163,7 +154,7 @@ struct switch_context_t<Return, void, false>
     static Return invoke(impl * const ptr)
     {
         using func_t = Return(impl * const);
-        auto switch_context = reinterpret_cast<func_t*>(&__mw_switch_context_0);
+        auto switch_context = reinterpret_cast<func_t*>(&__embo_switch_context_0);
         return static_cast<Return>(switch_context(ptr));
     }
 };
@@ -273,9 +264,9 @@ public:
 };
 
 template<typename Return, typename PushType>
-class coroutine<Return(PushType)> : ::mw::detail::coroutine::impl
+class coroutine<Return(PushType)> : ::embo::detail::coroutine::impl
 {
-    static_assert(mw::detail::coroutine::is_valid_type_t<Return>::value,   "The return type must either be a 64-bit integral type or a 32-bit compound type");
+    static_assert(embo::detail::coroutine::is_valid_type_t<Return>::value,   "The return type must either be a 64-bit integral type or a 32-bit compound type");
 
     bool _started = false;
     bool _exited  = false;
@@ -290,7 +281,7 @@ public:
     typedef yield_t<Return()> yield_type;
 
     template<typename StackContainer>
-    coroutine(StackContainer & sc) : ::mw::detail::coroutine::impl(
+    coroutine(StackContainer & sc) : ::embo::detail::coroutine::impl(
             {
                 reinterpret_cast<std::uintptr_t>(sc.data() + sc.size()) - sizeof(std::uint32_t),
                 reinterpret_cast<std::uintptr_t>(sc.data()),
@@ -300,7 +291,7 @@ public:
     {}
 
     template<typename T, std::size_t Size>
-    coroutine(T(&sc)[Size]) : ::mw::detail::coroutine::impl(
+    coroutine(T(&sc)[Size]) : ::embo::detail::coroutine::impl(
             {
                 reinterpret_cast<std::uintptr_t>(sc + Size) - sizeof(std::uint32_t),
                 reinterpret_cast<std::uintptr_t>(sc),
@@ -327,12 +318,12 @@ public:
 
     PushType yield_(Return ret)
     {
-        return static_cast<PushType>(mw::detail::coroutine::switch_context<PushType, Return>(static_cast<Return>(ret), this));
+        return static_cast<PushType>(embo::detail::coroutine::switch_context<PushType, Return>(static_cast<Return>(ret), this));
     }
 
     Return reenter(PushType pt)
     {
-        return mw::detail::coroutine::switch_context<Return, PushType>(static_cast<PushType>(pt), this);
+        return embo::detail::coroutine::switch_context<Return, PushType>(static_cast<PushType>(pt), this);
     }
 
     template<typename Function>
@@ -345,9 +336,9 @@ public:
             Return val = static_cast<Return>(func({this_}));
 
             this_->_exited = true;
-            return mw::detail::coroutine::switch_context<PushType, Return>(static_cast<Return>(val), this_);
+            return embo::detail::coroutine::switch_context<PushType, Return>(static_cast<Return>(val), this_);
         };
-        return static_cast<Return>(mw::detail::coroutine::make_context<Return>(this, &func, reinterpret_cast<void*>(executor)));
+        return static_cast<Return>(embo::detail::coroutine::make_context<Return>(this, &func, reinterpret_cast<void*>(executor)));
     }
 
     template<typename Function>
@@ -360,9 +351,9 @@ public:
             Return val = static_cast<Return>(func({this_}, static_cast<PushType>(pt)));
 
             this_->_exited = true;
-            return mw::detail::coroutine::switch_context(static_cast<Return>(val), this_);
+            return embo::detail::coroutine::switch_context(static_cast<Return>(val), this_);
         };
-        return static_cast<Return>(mw::detail::coroutine::make_context<Return, PushType>(
+        return static_cast<Return>(embo::detail::coroutine::make_context<Return, PushType>(
                 this, &func,
                 reinterpret_cast<void*>(executor),
                 static_cast<PushType>(pt)));
@@ -377,9 +368,9 @@ public:
             Return val = static_cast<Return>(func(yield_type{this_}));
             this_->_exited = true;
 
-            return mw::detail::coroutine::switch_context(static_cast<Return>(val), this_);
+            return embo::detail::coroutine::switch_context(static_cast<Return>(val), this_);
         };
-        return mw::detail::coroutine::make_context<Return>(this, func, reinterpret_cast<void*>(executor));
+        return embo::detail::coroutine::make_context<Return>(this, func, reinterpret_cast<void*>(executor));
     }
 
     Return spawn(return_type(&func)(yield_type), Return rt) {return static_cast<Return>(spawn(&func), static_cast<Return>(rt));}
@@ -391,9 +382,9 @@ public:
             Return val = static_cast<Return>(func({this_}, static_cast<Return>(rt)));
             this_->_exited = true;
 
-            return mw::detail::coroutine::switch_context(static_cast<Return>(val), this_);
+            return embo::detail::coroutine::switch_context(static_cast<Return>(val), this_);
         };
-        return mw::detail::coroutine::make_context<Return>(this, func, reinterpret_cast<void*>(executor), static_cast<Return>(rt));
+        return embo::detail::coroutine::make_context<Return>(this, func, reinterpret_cast<void*>(executor), static_cast<Return>(rt));
     }
 
     Return operator()(PushType pt){return reenter(static_cast<PushType>(pt));}
@@ -409,7 +400,7 @@ public:
 
 
 template<typename PushType>
-class coroutine<void(PushType)> : ::mw::detail::coroutine::impl
+class coroutine<void(PushType)> : ::embo::detail::coroutine::impl
 {
     bool _started = false;
     bool _exited  = false;
@@ -424,7 +415,7 @@ public:
     typedef yield_t<void()> yield_type;
 
     template<typename StackContainer>
-    coroutine(StackContainer & sc) : ::mw::detail::coroutine::impl(
+    coroutine(StackContainer & sc) : ::embo::detail::coroutine::impl(
             {
                 reinterpret_cast<std::uintptr_t>(sc.data() + sc.size()) - sizeof(std::uint32_t),
                 reinterpret_cast<std::uintptr_t>(sc.data()),
@@ -434,7 +425,7 @@ public:
     {}
 
     template<typename T, std::size_t Size>
-    coroutine(T(&sc)[Size]) : ::mw::detail::coroutine::impl(
+    coroutine(T(&sc)[Size]) : ::embo::detail::coroutine::impl(
             {
                 reinterpret_cast<std::uintptr_t>(sc + Size) - sizeof(std::uint32_t),
                 reinterpret_cast<std::uintptr_t>(sc),
@@ -461,12 +452,12 @@ public:
 
     PushType yield_()
     {
-        return static_cast<PushType>(mw::detail::coroutine::switch_context<PushType>(this));
+        return static_cast<PushType>(embo::detail::coroutine::switch_context<PushType>(this));
     }
 
     void reenter(PushType pt)
     {
-        mw::detail::coroutine::switch_context<void>( static_cast<PushType>(pt), this);
+        embo::detail::coroutine::switch_context<void>( static_cast<PushType>(pt), this);
     }
 
     template<typename Function>
@@ -479,9 +470,9 @@ public:
             func({this_});
             this_->_exited = true;
 
-            mw::detail::coroutine::switch_context<void>(this_);
+            embo::detail::coroutine::switch_context<void>(this_);
         };
-        mw::detail::coroutine::make_context<void>(
+        embo::detail::coroutine::make_context<void>(
                 this,
                 reinterpret_cast<void*>(&func),
                 reinterpret_cast<void*>(executor));
@@ -498,9 +489,9 @@ public:
             func({this_}, static_cast<PushType>(pt));
             this_->_exited = true;
 
-            mw::detail::coroutine::switch_context<void>(this_);
+            embo::detail::coroutine::switch_context<void>(this_);
         };
-        mw::detail::coroutine::make_context<void, PushType>(
+        embo::detail::coroutine::make_context<void, PushType>(
                 this,
                 reinterpret_cast<void*>(&func),
                 reinterpret_cast<void*>(executor),
@@ -516,9 +507,9 @@ public:
             func({this_});
             this_->_exited = true;
 
-            mw::detail::coroutine::switch_context<void>(this_);
+            embo::detail::coroutine::switch_context<void>(this_);
         };
-        mw::detail::coroutine::make_context<void>(this, reinterpret_cast<void*>(func), reinterpret_cast<void*>(executor));
+        embo::detail::coroutine::make_context<void>(this, reinterpret_cast<void*>(func), reinterpret_cast<void*>(executor));
     }
 
     void spawn(return_type(&func)(yield_type, PushType), PushType pt) {spawn(&func, static_cast<PushType>(pt));}
@@ -530,9 +521,9 @@ public:
             func({this_}, static_cast<PushType>(pt));
             this_->_exited = true;
 
-            mw::detail::coroutine::switch_context<void>(this_);
+            embo::detail::coroutine::switch_context<void>(this_);
         };
-        mw::detail::coroutine::make_context<void, PushType>(
+        embo::detail::coroutine::make_context<void, PushType>(
                 this,
                 reinterpret_cast<void*>(func),
                 reinterpret_cast<void*>(executor),
@@ -552,9 +543,9 @@ public:
 
 
 template<typename Return>
-class coroutine<Return()> : ::mw::detail::coroutine::impl
+class coroutine<Return()> : ::embo::detail::coroutine::impl
 {
-    static_assert(mw::detail::coroutine::is_valid_type_t<Return>::value,   "The return type must either be a 64-bit integral type or a 32-bit compound type");
+    static_assert(embo::detail::coroutine::is_valid_type_t<Return>::value,   "The return type must either be a 64-bit integral type or a 32-bit compound type");
 
     bool _started = false;
     bool _exited  = false;
@@ -569,7 +560,7 @@ public:
     typedef yield_t<Return()> yield_type;
 
     template<typename StackContainer>
-    coroutine(StackContainer & sc) : ::mw::detail::coroutine::impl(
+    coroutine(StackContainer & sc) : ::embo::detail::coroutine::impl(
             {
                 reinterpret_cast<std::uintptr_t>(sc.data() + sc.size()) - sizeof(std::uint32_t),
                 reinterpret_cast<std::uintptr_t>(sc.data()),
@@ -579,7 +570,7 @@ public:
     {}
 
     template<typename T, std::size_t Size>
-    coroutine(T(&sc)[Size]) : ::mw::detail::coroutine::impl(
+    coroutine(T(&sc)[Size]) : ::embo::detail::coroutine::impl(
             {
                 reinterpret_cast<std::uintptr_t>(sc + Size) - sizeof(std::uint32_t),
                 reinterpret_cast<std::uintptr_t>(sc),
@@ -606,12 +597,12 @@ public:
 
     void yield_(Return ret)
     {
-        mw::detail::coroutine::switch_context<Return>(static_cast<Return>(ret), this);
+        embo::detail::coroutine::switch_context<Return>(static_cast<Return>(ret), this);
     }
 
     Return reenter()
     {
-        return mw::detail::coroutine::switch_context<Return>(this);
+        return embo::detail::coroutine::switch_context<Return>(this);
     }
 
     template<typename Function>
@@ -624,9 +615,9 @@ public:
             Return val = static_cast<Return>(func({this_}));
 
             this_->_exited = true;
-            return mw::detail::coroutine::switch_context<Return>(static_cast<Return>(val), this_);
+            return embo::detail::coroutine::switch_context<Return>(static_cast<Return>(val), this_);
         };
-        return mw::detail::coroutine::make_context<Return>(this, &func, reinterpret_cast<void*>(executor));
+        return embo::detail::coroutine::make_context<Return>(this, &func, reinterpret_cast<void*>(executor));
     }
 
     Return spawn(return_type(&func)(yield_type)) {return spawn(&func);}
@@ -638,9 +629,9 @@ public:
             Return val = static_cast<Return>(func(yield_type{this_}));
             this_->_exited = true;
 
-            return mw::detail::coroutine::switch_context(static_cast<Return>(val), this_);
+            return embo::detail::coroutine::switch_context(static_cast<Return>(val), this_);
         };
-        return mw::detail::coroutine::make_context<Return>(this, func, reinterpret_cast<void*>(executor));
+        return embo::detail::coroutine::make_context<Return>(this, func, reinterpret_cast<void*>(executor));
     }
 
     Return operator()(){return reenter();}
@@ -656,7 +647,7 @@ public:
 
 
 template<>
-class coroutine<void()> : ::mw::detail::coroutine::impl
+class coroutine<void()> : ::embo::detail::coroutine::impl
 {
     bool _started = false;
     bool _exited  = false;
@@ -671,7 +662,7 @@ public:
     typedef yield_t<void()> yield_type;
 
     template<typename StackContainer>
-    coroutine(StackContainer & sc) : ::mw::detail::coroutine::impl(
+    coroutine(StackContainer & sc) : ::embo::detail::coroutine::impl(
             {
                 reinterpret_cast<std::uintptr_t>(sc.data() + sc.size()) - sizeof(std::uint32_t),
                 reinterpret_cast<std::uintptr_t>(sc.data()),
@@ -681,7 +672,7 @@ public:
     {}
 
     template<typename T, std::size_t Size>
-    coroutine(T(&sc)[Size]) : ::mw::detail::coroutine::impl(
+    coroutine(T(&sc)[Size]) : ::embo::detail::coroutine::impl(
             {
                 reinterpret_cast<std::uintptr_t>(sc + Size) - sizeof(std::uint32_t),
                 reinterpret_cast<std::uintptr_t>(sc),
@@ -709,12 +700,12 @@ public:
 
     void yield_()
     {
-        mw::detail::coroutine::switch_context<void>(this);
+        embo::detail::coroutine::switch_context<void>(this);
     }
 
     void reenter()
     {
-        mw::detail::coroutine::switch_context<void>(this);
+        embo::detail::coroutine::switch_context<void>(this);
     }
 
     template<typename Function>
@@ -727,9 +718,9 @@ public:
             func({this_});
             this_->_exited = true;
 
-            mw::detail::coroutine::switch_context<void>(this_);
+            embo::detail::coroutine::switch_context<void>(this_);
         };
-        mw::detail::coroutine::make_context<void>(this, reinterpret_cast<void*>(&func), reinterpret_cast<void*>(executor));
+        embo::detail::coroutine::make_context<void>(this, reinterpret_cast<void*>(&func), reinterpret_cast<void*>(executor));
     }
 
     void spawn(return_type(&func)(yield_type)) {return spawn(&func);}
@@ -741,9 +732,9 @@ public:
             func({this_});
             this_->_exited = true;
 
-            mw::detail::coroutine::switch_context<void>(this_);
+            embo::detail::coroutine::switch_context<void>(this_);
         };
-        mw::detail::coroutine::make_context<void>(this, reinterpret_cast<void*>(func), reinterpret_cast<void*>(executor));
+        embo::detail::coroutine::make_context<void>(this, reinterpret_cast<void*>(func), reinterpret_cast<void*>(executor));
     }
 
     void operator()(){reenter();}
@@ -891,4 +882,4 @@ std::size_t   yield_t<void()>::stack_left() const
 
 
 
-#endif /* MW_COROUTINE_HPP_ */
+#endif /* EMBO_COROUTINE_HPP_ */

@@ -1,16 +1,9 @@
 /**
-@file   couroutine.cpp
+@file   couroutine_arm.S
 @ate   10.06.2017
 @author Klemens D. Morgenstern
 
 Published under [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html)
-
-<pre>
-   /  /|  (  )   |  |  /
-  /| / |   \/    | /| /
- / |/  |   /\    |/ |/
-/  /   |  (  \   /  |
-</pre>              )
 
 ARM Core Register
 
@@ -35,13 +28,13 @@ r0       | a1      |         | Argument / result / scratch register 1
 */
 
 .text
-.globl __mw_make_context_0
+.globl __embo_make_context_0
 .align 2
-.type __mw_make_context_0,%function
+.type __embo_make_context_0,%function
 .thumb
 .syntax unified
-__mw_make_context_0:
-    @__mw_make_context_0(impl * const, void * target, void * executor);
+__embo_make_context_0:
+    @__embo_make_context_0(impl * const, void * target, void * executor);
     @the executor has the following signature: (impl * const, void * func) --> we don't even need to change the
 	@now impl also points to the stack_ptr store we need.
 
@@ -53,13 +46,13 @@ __mw_make_context_0:
     bx a3               @call the function -> note the link register on top of the stack still points to the old location, so we'll get this back in switch_context
 
 .text
-.globl __mw_make_context_1
+.globl __embo_make_context_1
 .align 2
-.type __mw_make_context_1,%function
+.type __embo_make_context_1,%function
 .thumb
 .syntax unified
-__mw_make_context_1:
-    @__mw_make_context_0(impl * const, void * target, void * executor, std::uint32_t);
+__embo_make_context_1:
+    @__embo_make_context_0(impl * const, void * target, void * executor, std::uint32_t);
     @the executor has the following signature: (impl * const, void * func, std::uint32_t) --> we don't even need to change the
 	@now impl also points to the stack_ptr store we need.
 
@@ -77,13 +70,13 @@ __mw_make_context_1:
 
 
 .text
-.globl __mw_make_context_2
+.globl __embo_make_context_2
 .align 2
-.type __mw_make_context_2,%function
+.type __embo_make_context_2,%function
 .thumb
 .syntax unified
-__mw_make_context_2:
-    @__mw_make_context_0(impl * const, void * target, void * executor, std::uint64_t * );
+__embo_make_context_2:
+    @__embo_make_context_0(impl * const, void * target, void * executor, std::uint64_t * );
     @the executor has the following signature: (impl * const, void * func, std::uint64_t) --> we don't even need to change the
 	@now impl also points to the stack_ptr store we need.
 
@@ -103,13 +96,13 @@ __mw_make_context_2:
 
 
 .text
-.globl __mw_switch_context_0
+.globl __embo_switch_context_0
 .align 2
-.type __mw_switch_context_0,%function
+.type __embo_switch_context_0,%function
 .thumb
 .syntax unified
-__mw_switch_context_0:
-    @__mw_make_context_0(impl * const);
+__embo_switch_context_0:
+    @__embo_make_context_0(impl * const);
     push {v1-v8, lr}
 
     mov v1, sp
@@ -121,13 +114,13 @@ __mw_switch_context_0:
     bx lr
 
 .text
-.globl __mw_switch_context_1
+.globl __embo_switch_context_1
 .align 2
-.type __mw_switch_context_1,%function
+.type __embo_switch_context_1,%function
 .thumb
 .syntax unified
-__mw_switch_context_1:
-    @__mw_make_context_1(std::uint32_t, impl * const);
+__embo_switch_context_1:
+    @__embo_make_context_1(std::uint32_t, impl * const);
     push {v1-v8, lr}
 
     mov v1, sp
@@ -139,13 +132,13 @@ __mw_switch_context_1:
     bx lr
 
 .text
-.globl __mw_switch_context_2
+.globl __embo_switch_context_2
 .align 2
-.type __mw_switch_context_2,%function
+.type __embo_switch_context_2,%function
 .thumb
 .syntax unified
-__mw_switch_context_2:
-    @__mw_make_context_2(std::uint64_t, impl * const);
+__embo_switch_context_2:
+    @__embo_make_context_2(std::uint64_t, impl * const);
     push {v1-v8, lr}
 
     mov v1, sp
