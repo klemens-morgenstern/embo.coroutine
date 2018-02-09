@@ -1,0 +1,267 @@
+% This text is proprietary.
+% It's a part of presentation made by myself.
+% It may not used commercial.
+% The noncommercial use such as private and study is 
+
+\documentclass{beamer}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{aeguill}
+\usepackage{adjustbox}
+\usepackage{listings}
+
+\usetheme{Warsaw}
+%\usecolortheme{dolphin}
+
+\begin{document}
+
+\lstset{language=C++,
+                basicstyle=\ttfamily,
+                keywordstyle=\color{blue}\ttfamily,
+                stringstyle=\color{red}\ttfamily,
+                commentstyle=\color{green}\ttfamily,
+              %  columns=fixed,
+                morecomment=[l][\color{magenta}]{\#}
+}
+
+\lstdefinelanguage{ASM}{
+    morekeywords={str, add, move, sub, ldr, bx, mov,
+    stmfd, nop, ldmfd bl},
+    sensitive=false, % keywords are not case-sensitive
+    morecomment=[l]{//}, % l is for line comment
+    morecomment=[s]{/*}{*/}, % s is for start and end delimiter
+    morestring=[b]" % defines that strings are enclosed in double quotes
+} % 
+
+\title{Developing high-performance Coroutines for ARMs}
+\author{Klemens Morgenstern}
+\date{10.03.2018}
+
+\frame{\titlepage}
+
+
+
+\begin{frame}
+\frametitle{Introduction}
+\begin{itemize}
+\item Klemens Morgenstern
+\item Electrical engineer
+\item boost contributor
+\item Open for contraction \& consulting
+\item klemens.d.morgenstern@gmail.com
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Threading \& Coroutines}
+
+
+\begin{columns}
+\begin{column}{0.5\textwidth}
+Threads
+\begin{itemize}
+\item<1-> Provide execution context
+\item<2-> Scheduler interrupts 
+\item<3-> Undeterministic order
+\end{itemize}
+\end{column}
+\begin{column}{0.5\textwidth}
+Coroutines
+\begin{itemize}
+\item<1-> Provide execution context
+\item<2-> Deterministic exit points
+\item<3-> Guaranteed execution order
+\end{itemize}
+\end{column}
+\end{columns}
+
+\end{frame}
+\begin{frame}
+\frametitle{Multithreading}
+\begin{adjustbox}{max totalsize={.9\textwidth}{.7\textheight},center}
+\input{thread.tex}
+\end{adjustbox}
+\end{frame}
+
+\begin{frame}
+\frametitle{Coroutine}
+\begin{adjustbox}{max totalsize={.9\textwidth}{.7\textheight},center}
+\input{coroutine.tex}
+\end{adjustbox}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Thread code example}
+
+\begin{lstlisting}
+mutex mtx; 
+thread t1, t2;
+{
+    lock_guard lock(mtx);    
+    t1 = [mtx]{
+            { lock_guard lock(mtx); f1(); }
+            { lock_guard lock(mtx); f2(); }
+        };
+    t2 = [mtx]{
+            { lock_guard lock(mtx); f3(); }
+            { lock_guard lock(mtx); f4(); }
+        };   
+} //could be in any order, just guarantees
+  //that f2 is called after f1 and f4 after f3
+t1.join(); 
+t2.join();
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Coroutine code example}
+
+\begin{lstlisting}
+coroutine c1 = {f1(); yield(); f2();};
+coroutine c2 = {f3(); yield(); f4();};    
+
+c1.enter(); //after yield in c1
+c2.enter(); //after yield in c2
+c1.reenter(); //reenters after yield
+c2.reenter(); //reenters after cield
+
+//always executes f1, f3, f2, f4
+
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}
+\frametitle{Argument passing \& value returning}
+
+\begin{itemize}
+\item<1-> No concurrent access
+\item<2-> Deterministic context switch
+\item<3-> Pass values in and out through \lstinline{yield}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Argument passing \& value returning}
+\begin{lstlisting}
+coroutine<double(int)> cr = 
+    [](int in) -> double
+    {
+         in = yield(in * 0.5);
+         in = yield(in * 0.25);
+         return in * 1.2;
+    };
+
+assert(cr.enter(4) == 2.0);   //4 * 0.5
+assert(cr.reenter(2) == 0.5); //2 * 0.025
+assert(cr.reenter(3) == 3.6); //3 * 1.2
+    
+\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Context}
+\begin{itemize}
+\item<1-> \lstinline[columns=fixed]{   r13/    SP  } Stack pointer
+\item<2-> \lstinline[columns=fixed]{   r14/    LR  } Link Register
+\item<3-> \lstinline[columns=fixed]{r4-r11/v1-v8  } Variable registers
+\item<4-> \lstinline[columns=fixed]{r0- r3/a1-a4  } Argument/Scratch register
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Stack Pointer}
+\begin{itemize}
+\item<1-> Points to lowest element on stack
+\item<2-> Decremented on function entry / incremented on exit (usually)
+\item<3-> Relative validity inside function
+\end{itemize}
+
+\begin{block}<4->{}
+\begin{lstlisting}
+void foo() { }
+\end{lstlisting}
+\end{block}
+
+\begin{block}<5->{}
+\begin{lstlisting}[language=ASM]
+  str fp, [sp, #-4]!
+  add fp, sp, #0
+  mov r0, r0 @ nop
+  sub sp, fp, #0
+  ldr fp, [sp], #4
+  bx lr
+\end{lstlisting}
+\end{block}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Link Register}
+\begin{itemize}
+\item<1-> Points to the code location of function call
+\item<2-> Returning means jump to the location
+\item<3-> Pushed on stack for new function call
+\end{itemize}
+
+\begin{block}<4->{}
+\begin{lstlisting}
+void foo() {bar();}
+\end{lstlisting}
+\end{block}
+
+\begin{block}<5->{}
+\begin{lstlisting}[language=ASM]
+  stmfd sp!, {fp, lr}
+  add fp, sp, #4
+  bl bar()
+  mov r0, r0 @ nop
+  sub sp, fp, #4
+  ldmfd sp!, {fp, lr}
+  bx lr
+\end{lstlisting}
+\end{block}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Variable registers}
+\begin{itemize}
+\item<1-> Load/Store-Architecture
+\item<2-> Values must be loaded into variable registers for operations
+\item<3-> Must be persistent after subroutine calls
+\item<4-> When used, old values get pushed on the stack
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Argument Register}
+\begin{itemize}
+\item<1-> Only valid in local context, not persistent
+\item<2-> Used to pass arguments in and return
+\item<3-> Large values store a reference
+\end{itemize}
+
+\begin{block}<4->{}
+\begin{lstlisting}
+extern int in_, out;
+int foo(int in) {in_ = in; return out;}
+\end{lstlisting}
+\end{block}
+
+\begin{block}<5->{}
+\begin{lstlisting}[language=ASM]
+  ldr r2, .L2
+  ldr r3, .L2+4
+  str r0, [r2]
+  ldr r0, [r3]
+  bx lr
+\end{lstlisting}
+\end{block}
+
+\end{frame}
+
+
+\end{document}

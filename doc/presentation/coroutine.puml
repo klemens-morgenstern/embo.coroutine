@@ -1,0 +1,27 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+
+skinparam sequence {
+    ActorBorderColor DeepSkyBlue
+    ArrowColor #4a6484
+    
+    LifeLineBorderColor #4a6484
+    ParticipantBackgroundColor  #91c6ff
+    ParticipantBorderColor black
+    BoxBorderColor black
+}
+
+activate Main
+Main -> Coroutine1 : start (context switch)
+deactivate Main
+activate Coroutine1
+Coroutine1 -> Main : yield
+deactivate Coroutine1
+activate Main
+Main -> Coroutine1 : reenter (context switch)
+deactivate Main
+activate Coroutine1
+Coroutine1 -> Main : yield
+deactivate Coroutine1
+
+@enduml

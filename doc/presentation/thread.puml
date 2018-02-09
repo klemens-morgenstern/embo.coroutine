@@ -1,0 +1,31 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+
+skinparam sequence {
+    ActorBorderColor DeepSkyBlue
+    ArrowColor #4a6484
+    
+    LifeLineBorderColor #4a6484
+    ParticipantBackgroundColor  #91c6ff
+    ParticipantBorderColor black
+    BoxBorderColor black
+}
+
+Scheduler -> Thread1 : start (context switch)
+activate Thread1
+Scheduler -> Thread1 : interrupt
+deactivate Thread1
+
+Thread1->Thread2 : context switch
+Scheduler -> Thread2 : start (context switch)
+activate Thread2
+Scheduler -> Thread2 : interrupt
+deactivate Thread2
+
+Thread2->Thread1 : context switch
+
+Scheduler -> Thread1 : reenter (context switch)
+activate Thread1
+Scheduler -> Thread1 : interrupt
+deactivate Thread1
+@enduml
