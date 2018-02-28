@@ -1,0 +1,13 @@
+@startuml
+activate main
+main->coroutine : call
+activate coroutine
+hnote  over coroutine: some work
+coroutine-> main : yield
+... 
+main-> coroutine : reenter
+hnote  over coroutine: more work
+coroutine->main : return
+deactivate coroutine
+deactivate main
+@enduml

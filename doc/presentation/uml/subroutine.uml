@@ -1,0 +1,10 @@
+@startuml 
+activate main
+main->subroutine : call
+activate subroutine
+hnote  over subroutine: some work
+hnote  over subroutine: more work
+subroutine->main : return
+deactivate subroutine
+deactivate main
+@enduml
