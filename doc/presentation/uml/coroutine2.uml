@@ -1,0 +1,20 @@
+@startuml
+activate main
+main->cr1 : call
+activate cr1
+hnote  over cr1: some work
+cr1-> main : yield
+main->cr2 : call
+activate cr2
+hnote  over cr2: some work
+cr2->main : yield
+main-> cr1 : reenter
+hnote  over cr1: more work
+cr1->main : return
+deactivate cr1
+main-> cr2: reenter
+hnote  over cr2: more work
+cr2->main : return
+deactivate cr2
+deactivate main
+@enduml

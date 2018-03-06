@@ -10,7 +10,15 @@
 \usepackage{adjustbox}
 \usepackage{listings}
 \usepackage[style=british]{csquotes}
+\usepackage{pgfpages}
 
+\def\tikzmark#1{\tikz[remember picture,overlay]\node[yshift=2pt](#1){};}
+
+\usetikzlibrary{arrows.meta}
+
+%\setbeamertemplate{note page}[plain]
+%\setbeameroption{show notes on second screen=right}
+\definecolor{darkgreen}{rgb}{0.33, 0.42, 0.18}
 \usetheme{Warsaw}
 %\usecolortheme{dolphin}
 
@@ -20,10 +28,11 @@
                 basicstyle=\ttfamily,
                 keywordstyle=\color{blue}\ttfamily,
                 stringstyle=\color{red}\ttfamily,
-                commentstyle=\color{green}\ttfamily,
+                commentstyle=\color{darkgreen}\ttfamily,
                 numbers=left,               % Ort der Zeilennummern
                 stepnumber=1, 
                 %numberstyle=\small,
+                escapeinside={(*@}{@*)},
                 xleftmargin=2.pt
 }
 
@@ -42,12 +51,9 @@
 
 \frame{\titlepage}
 
-
-
 \begin{frame}
 \frametitle{Introduction}
 \begin{itemize}
-\item Klemens Morgenstern
 \item Electrical engineer by training
 \item C++ developer by passion
 \item boost contributor
@@ -57,24 +63,42 @@
 \end{frame}
 
 \begin{frame}
+\frametitle{Motivation}
+\begin{itemize}
+\item<1-> Coroutines are awesome
+\item<2-> Lower overhead alternative to threads 
+\item<3-> More readable alternative to state-machines
+\item<4-> Do not require an OS / Scheduler
+\item<5-> Not well enough known 
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}
 \frametitle{Overview}
 \begin{enumerate}
 \item<1-> Introduction to coroutines
 \item<2-> Implementation
 \item<3-> Performance comparisons
 \end{enumerate}
-
 \end{frame}
+
+\note[itemize]{
+\item Awesome, not well known enough
+\item Light-weight alternative to threads
+\item Alternative to Statemachines
+\item Higher performance than often assumed
+\item Perfect for none-eabi, no thread-scheduler needed.
+}
+
 
 \begin{frame}
 \frametitle{Definition}
 
-
-
 \begin{itemize}
 \item<1-> Function with it's own stack
 \item<2-> can interrupt it's own execution
-\item<3-> and resumed later
+\item<3-> and be resumed later
 \end{itemize}
   
 \end{frame}
@@ -141,33 +165,6 @@ void cr_impl(yield_t & yield)
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Argument passing example}
-\begin{block}{}
-\begin{lstlisting}[basicstyle=\small]
-int cr_impl(yield_t & yield, bool) 
-{
-  int value = 1;
-  while(yield(value))
-    value <<= 1;
-  return 0;
-}
-
-int main() 
-{
-  coroutine<int(bool)> cr{&cr_impl};
-  
-  assert(cr.spawn(true) == 1);
-  assert(cr.reenter(true) == 2);
-  assert(cr.reenter(true) == 4);
-  return cr.reenter(false);
-}
-\end{lstlisting}
-\end{block}
-\end{frame}
-
-
-
-\begin{frame}[fragile]
 \frametitle{Coroutine concurrency}
 \begin{columns}
 \begin{column}{0.65\textwidth}
@@ -202,6 +199,63 @@ void cr_impl(yield_t & yield)
 \end{columns}
 \end{frame}
 
+\note[itemize]
+{
+   \item Pseudo-concurrency
+   \item No race conditions		
+}
+
+\begin{frame}[fragile]
+\frametitle{Value yield example}
+
+\begin{block}{}
+\begin{lstlisting}[basicstyle=\small]
+int cr_impl(yield_t & yield) 
+{
+  yield(1);
+  yield(2);
+  return 4;  
+}
+
+int main() 
+{
+  coroutine<int()> cr{&cr_impl};
+  
+  assert(cr.spawn() == 1);
+  assert(cr.reenter() == 2);
+  assert(cr.reenter() == 4);
+  return cr.done() ? 0 : 1;
+}
+\end{lstlisting}
+
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Argument passing example}
+\begin{block}{}
+\begin{lstlisting}[basicstyle=\small]
+int cr_impl(yield_t & yield, bool) 
+{
+  int value = 1;
+  while(yield(value))
+    value <<= 1;
+  return 0;
+}
+
+int main() 
+{
+  coroutine<int(bool)> cr{&cr_impl};
+  
+  assert(cr.spawn(true) == 1);
+  assert(cr.reenter(true) == 2);
+  assert(cr.reenter(true) == 4);
+  return cr.reenter(false);
+}
+\end{lstlisting}
+\end{block}
+\end{frame}
+
 \begin{frame}
 \frametitle{Properties}
 \begin{itemize}
@@ -209,7 +263,7 @@ void cr_impl(yield_t & yield)
 \item<2-> Pass values out on yield in on reenter
 \item<3-> May not be moved in memory
 \item<4-> Can be stored (e.g. for deep sleep)
-\item<5-> Can call third-party code
+\item<5-> Only constraint is the stack-size
 \item<6-> Could be used as callback
 \end{itemize}
 \end{frame}
@@ -217,9 +271,76 @@ void cr_impl(yield_t & yield)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 2 Implementation %%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\begin{frame}[fragile]
+\frametitle{Context switch}
+\begin{columns}
+\begin{column}{0.49\textwidth}
+Main Context
+\begin{block}{}
+\begin{lstlisting}[basicstyle=\small]
+int main()
+{
+  coroutine cr;
+  cr.spawn()
+  /* make_context(*@\tikzmark{A}@*)
+   *
+   * 
+   *return from spawn*/;(*@\tikzmark{D}@*)
+  cr.reenter()
+  /* switch_context (*@\tikzmark{E}@*)
+   *
+   *return from reenter*/;(*@\tikzmark{H}@*)
+  return 0;
+}
+\end{lstlisting}
+\end{block}
+\end{column}
+\begin{column}{0.49\textwidth}
+Coroutine Context
+
+\begin{block}{}
+\begin{lstlisting}[basicstyle=\small, numbers=right]
+
+
+
+
+(*@\tikzmark{B}@*)void cr_impl()
+{
+  yield()
+  (*@\tikzmark{C}@*)/* switch_context
+   *
+   (*@\tikzmark{F}@*)*return from yield*/;
+}
+(*@\tikzmark{G}@*)
+
+(*@@*)  
+\end{lstlisting}
+\end{block}
+\end{column}
+\end{columns}
+\begin{tikzpicture}[remember picture, overlay]
+\pause{}
+
+\draw[->, red](A) to (B);
+\draw[->, red](C) to (D);
+\draw[->, red](E) to (F);
+\draw[->, red](G) to (H);
+\end{tikzpicture}
+
+
+\end{frame}
+
 
 \begin{frame}[fragile]
-\frametitle{Stack Pointer}
+\frametitle{Context switch}
+\begin{adjustbox}{max totalsize={.9\textwidth}{.9\textheight},center}
+\input{uml/context_switch.latex}
+\end{adjustbox}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Stack Pointer \lstinline{SP}}
 \begin{itemize}
 \item<1-> Points to lowest element on stack
 \item<2-> Decremented on function entry / incremented on exit (usually)
@@ -235,7 +356,7 @@ void foo() { }
 \begin{lstlisting}[language=ASM]
   str fp, [sp, #-4]!
   add fp, sp, #0
-  mov r0, r0 @ nop
+  mov a1, a1 @ nop
   sub sp, fp, #0
   ldr fp, [sp], #4
   bx lr
@@ -245,7 +366,7 @@ void foo() { }
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Link Register}
+\frametitle{Link Register \lstinline{LR}}
 \begin{itemize}
 \item<1-> Points to the code location of function call
 \item<2-> Returning means jump to the location
@@ -273,13 +394,13 @@ void foo() {bar();}
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Argument Register}
+\frametitle{Argument Register \lstinline{a1-a4}}
 \begin{itemize}
 \item<1-> Used to pass arguments in and return
 \item<2-> Large values store a reference
-\item<3-> \lstinline{r0} stores the return value
+\item<3-> \lstinline{a1} stores the return value
 \item<4-> Only valid in local context, not persistent
-
+\item<5-> \lstinline{ip} is an additional scratch register
 \end{itemize}
 
 \begin{block}<5->{}
@@ -290,7 +411,7 @@ int foo(int x, int y) { return x+y; }
 
 \begin{block}<6->{}
 \begin{lstlisting}[language=ASM]
-  add r0, r0, r1
+  add a1, a1, a2
   bx lr
 \end{lstlisting}
 \end{block}
@@ -298,7 +419,7 @@ int foo(int x, int y) { return x+y; }
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Variable registers}
+\frametitle{Variable registers \lstinline{v1-v8}}
 \begin{itemize}
 \item<1-> Load/Store-Architecture
 \item<2-> Values must be loaded into variable registers for operations
@@ -327,8 +448,8 @@ void foo(int &x, int &y,
   ldr v2, [a4]
   ldr v1, [a2]
   ldr lr, [a3]
-  mla r12, v1, v2, lr
-  str r12, [a1]
+  mla ip, v1, v2, lr
+  str ip, [a1]
   bl bar
   pop {v1, v2, v3, lr}
   bx lr
@@ -342,15 +463,14 @@ void foo(int &x, int &y,
 \begin{frame}[fragile]
 \frametitle{Context}
 \begin{itemize}
-\item<1-> \lstinline[columns=fixed]{r0- r3/a1-a4  } Argument/Scratch register
-\item<2-> \lstinline[columns=fixed]{r4-r11/v1-v8  } Variable registers
-\item<3-> \lstinline[columns=fixed]{   r11/   fp  }\textit{Frame pointer on gcc}
-\item<4-> \lstinline[columns=fixed]{   r12/   ip  } Intra procedure scratch \item<5-> \lstinline[columns=fixed]{   r13/   SP  } Stack pointer
-\item<6-> \lstinline[columns=fixed]{   r14/   LR  } Link Register
+\item<1-> \lstinline[columns=fixed]{r0- r3/a1-a4 } Argument/Scratch register
+\item<2-> \lstinline[columns=fixed]{r4-r11/v1-v8 } Variable registers
+\item<3-> \lstinline[columns=fixed]{   r11/   fp }\textit{Frame pointer on gcc}
+\item<4-> \lstinline[columns=fixed]{   r12/   ip } Intra procedure scratch 
+\item<5-> \lstinline[columns=fixed]{   r13/   SP } Stack pointer
+\item<6-> \lstinline[columns=fixed]{   r14/   LR } Link Register
 register
-
 \end{itemize}
-
 \end{frame}
 
 \begin{frame}[fragile]
@@ -358,23 +478,23 @@ register
 
 \begin{block}{}
 \begin{lstlisting}[basicstyle=\small]
-template<typename T>
 struct coroutine
 {
   void * stack_pointer; //valid
-  
   template<typename Function>
   Return spawn(Function && func)
   {
-    auto executor = +[](coroutine * const this_, 
-                        Function *func_p)
-      {
-        Function func = *func_p;
-        Return val = func({this_});
-        switch_context(val, this_);
-      };
-    return make_context(this, &func, executor)));
+      return make_context(this, &func, &executor);
   }
+
+  static void executor(coroutine * const this_, 
+                       Function *func_p)
+  {
+    Function func = *func_p;
+    Return val = func({this_});
+    done = true;
+    switch_context(val, this_);
+  };  
 };
 \end{lstlisting}
 \end{block}
@@ -402,9 +522,6 @@ make_context_0:
 \end{block}
 \end{frame}
 
-
-
-
 \begin{frame}[fragile]
 \frametitle{Context switch}
 \begin{block}<1->{}
@@ -419,20 +536,20 @@ void reenter(void*& p){switch_context_0(sp);}
 \begin{block}<2->{}
 \begin{lstlisting}[language=ASM]
 switch_context_0:
-  push {v1-v8, lr}
+  push {v1-v8, lr} @8
+  
+  mov v1, sp   @1
+  ldr sp, [a1] @2
+  str v1, [a1] @2
 
-  mov v1, sp
-  ldr sp, [a1]
-  str v1, [a1]
-
-  pop {v1-v8, lr}
-  bx lr
+  pop {v1-v8, lr} @8
+  bx lr @1  --> overall 22
 \end{lstlisting}
 \end{block}
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Context switch \lstinline{uint64_t(uint32_t)}}
+\frametitle{Context switch \lstinline{uint32_t(uint64_t)}}
 \begin{block}{}
 \begin{lstlisting}[basicstyle=\small]
 uint64_t switch_context_1(uint32_t, void*& sp);
@@ -445,7 +562,6 @@ uint32_t reenter(uint64_t i, void*& p)
 {
   return switch_context_2(i, sp);
 }
-
 \end{lstlisting}
 \end{block}
 \end{frame}
@@ -462,7 +578,7 @@ uint32_t reenter(uint64_t i, void*& p)
 switch_context_1:
     @yield(uint32_t, void*) -> uint64_t
     @      a1      , a2
-    push {v1-v8, lr}
+    push {v1-v8, lr} 
 
     mov v1, sp
     ldr sp, [a2]
@@ -552,10 +668,10 @@ int coroutine(embo::yield_t<int()>& yield)
 \begin{block}{}
 \begin{lstlisting}[language=ASM, basicstyle=\small]
 statemachine::operator()():
-  ldr a4, [a1]
-  push {v1, lr}
-  cmp a4, #0
-  beq .L10
+  ldr a4, [a1]  @2
+  push {v1, lr} @1
+  cmp a4, #0    @1
+  beq .L10      @1 
   cmp a4, #1
   beq .L3
   cmp a4, #2
@@ -563,11 +679,11 @@ statemachine::operator()():
   pop {r4, lr}
   bx lr
 .L10:
-  mov a4, #1
-  str a4, [a1]
-  bl f()
-  pop {v1, lr}
-  bx lr
+  mov a4, #1    @1
+  str a4, [a1]  @2
+  bl f()        @1
+  pop {v1, lr}  @1
+  bx lr         @1 -> 11 for f, 12 for g, 13 for h
 \end{lstlisting}
 \end{block}
 \end{frame}
@@ -576,18 +692,18 @@ statemachine::operator()():
 \frametitle{Coroutine Assembly}
 \begin{block}{}
 \begin{lstlisting}[language=ASM, basicstyle=\small]
-coroutine(yield_t&):
-  push {v1, lr}
-  mov v1, a1	
-  bl f()
-  mov a2, v1
-  bl switch_context_1(int, void*)
-  bl g()
-  mov a2, v1
-  bl switch_context_1(int, void*)
-  bl h()
-  pop {v1, lr}
-  bx lr
+coroutine(yield_t&): @14
+  push {v1, lr} @1
+  mov v1, a1	@1  
+  bl f()        @1
+  mov a2, v1    @1
+  bl switch_context_1(int, void*) @1+22; 22 for reentry
+  bl g() @1
+  mov a2, v1 @1
+  bl switch_context_1(int, void*) @1+22
+  bl h() @1
+  pop {v1, lr} @1
+  bx lr @1 -> 41 for f, 47 g, 47 for h
 \end{lstlisting}
 \end{block}
 \end{frame}

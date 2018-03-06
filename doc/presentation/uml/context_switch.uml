@@ -1,0 +1,34 @@
+@startuml
+
+activate main
+main -> assembly : call spawn 
+note right: make_context
+activate assembly 
+assembly -> coroutine : call cr_impl
+deactivate assembly
+activate coroutine
+coroutine -> assembly : call yield 
+note left: switch_context
+activate assembly
+
+assembly -> main : return from spawn
+deactivate assembly
+
+main -> assembly : call reenter
+note right: switch_context
+
+activate assembly 
+assembly -> coroutine : return from yield
+deactivate assembly
+coroutine -> assembly : return from cr_impl
+note left: switch_context
+
+activate assembly
+assembly -> main : return from reenter
+
+deactivate assembly
+deactivate coroutine
+deactivate main
+
+
+@enduml
