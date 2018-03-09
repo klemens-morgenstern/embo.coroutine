@@ -19,8 +19,10 @@
 %\setbeamertemplate{note page}[plain]
 %\setbeameroption{show notes on second screen=right}
 \definecolor{darkgreen}{rgb}{0.33, 0.42, 0.18}
-\usetheme{Warsaw}
+\usetheme{metropolis}
 %\usecolortheme{dolphin}
+\setbeamercolor{block body}{bg=gray!30,fg=black}
+\setbeamercolor{block title}{bg=black!40,fg=black}
 
 \begin{document}
 
@@ -66,9 +68,9 @@
 \frametitle{Motivation}
 \begin{itemize}
 \item<1-> Coroutines are awesome
-\item<2-> Lower overhead alternative to threads 
-\item<3-> More readable alternative to state-machines
-\item<4-> Do not require an OS / Scheduler
+\item<2-> Low overhead alternative to threads 
+\item<3-> Do not require an OS / Scheduler
+\item<4-> More readable alternative to state-machines
 \item<5-> Not well enough known 
 \end{itemize}
 \end{frame}
@@ -91,7 +93,6 @@
 \item Perfect for none-eabi, no thread-scheduler needed.
 }
 
-
 \begin{frame}
 \frametitle{Definition}
 
@@ -107,7 +108,7 @@
 \frametitle{Subroutine}
 \begin{columns}
 \begin{column}{0.5\textwidth}
-\begin{block}{}
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}
 int main()
 {
@@ -131,12 +132,12 @@ void subroutine()
 \end{columns}
 \end{frame}
 
-
 \begin{frame}[fragile]
 \frametitle{Coroutine}
 \begin{columns}
-\begin{column}{0.7\textwidth}
-\begin{block}{}
+\begin{column}{0.65\textwidth}
+\vspace*{-3ex}
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}
 int main()
 {
@@ -147,7 +148,7 @@ int main()
   return 0;
 }
 
-void cr_impl(yield_t & yield)
+void cr_impl(yield_t &yield)
 {
   some_work();
   yield();
@@ -156,8 +157,8 @@ void cr_impl(yield_t & yield)
 \end{lstlisting}
 \end{block}
 \end{column}
-\begin{column}{0.3\textwidth}
-\begin{adjustbox}{max totalsize={.9\textwidth}{.7\textheight},center}
+\begin{column}{0.35\textwidth}
+\begin{adjustbox}{max totalsize={.99\textwidth}{.99\textheight},center}
 \input{uml/coroutine.latex}
 \end{adjustbox}
 \end{column}
@@ -167,8 +168,9 @@ void cr_impl(yield_t & yield)
 \begin{frame}[fragile]
 \frametitle{Coroutine concurrency}
 \begin{columns}
-\begin{column}{0.65\textwidth}
-\begin{block}{}
+\begin{column}{0.60\textwidth}
+\vspace*{-3ex}
+\begin{block}{\vspace*{-3.2ex}}
 
 \begin{lstlisting}[basicstyle=\small]
 int main()
@@ -181,7 +183,6 @@ int main()
   cr2.reenter();
   return 0;
 }
-
 void cr_impl(yield_t & yield)
 {
   some_work();
@@ -191,8 +192,9 @@ void cr_impl(yield_t & yield)
 \end{lstlisting}
 \end{block}
 \end{column}
-\begin{column}{0.35\textwidth}
-\begin{adjustbox}{max totalsize={.95\textwidth}{.85\textheight},center}
+\begin{column}{0.4\textwidth}
+
+\begin{adjustbox}{max totalsize={.98\textwidth}{.98\textheight},center}
 \input{uml/coroutine2.latex}
 \end{adjustbox}
 \end{column}
@@ -207,8 +209,8 @@ void cr_impl(yield_t & yield)
 
 \begin{frame}[fragile]
 \frametitle{Value yield example}
-
-\begin{block}{}
+\vspace*{-3ex}
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}[basicstyle=\small]
 int cr_impl(yield_t & yield) 
 {
@@ -233,7 +235,8 @@ int main()
 
 \begin{frame}[fragile]
 \frametitle{Argument passing example}
-\begin{block}{}
+\vspace*{-3ex}
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}[basicstyle=\small]
 int cr_impl(yield_t & yield, bool) 
 {
@@ -275,8 +278,7 @@ int main()
 \frametitle{Context switch}
 \begin{columns}
 \begin{column}{0.49\textwidth}
-Main Context
-\begin{block}{}
+\begin{block}{Main Context}
 \begin{lstlisting}[basicstyle=\small]
 int main()
 {
@@ -296,9 +298,7 @@ int main()
 \end{block}
 \end{column}
 \begin{column}{0.49\textwidth}
-Coroutine Context
-
-\begin{block}{}
+\begin{block}{Coroutine Context}
 \begin{lstlisting}[basicstyle=\small, numbers=right]
 
 
@@ -327,7 +327,6 @@ Coroutine Context
 \draw[->, red](G) to (H);
 \end{tikzpicture}
 
-
 \end{frame}
 
 
@@ -346,16 +345,17 @@ Coroutine Context
 \item<2-> Decremented on function entry / incremented on exit (usually)
 \end{itemize}
 
-\begin{block}<4->{}
+\begin{block}<4->{C++}
 \begin{lstlisting}
 void foo() { }
 \end{lstlisting}
 \end{block}
 
-\begin{block}<5->{}
+\begin{block}<5->{ASM (by gcc)}
 \begin{lstlisting}[language=ASM]
   str fp, [sp, #-4]!
   add fp, sp, #0
+  sub sp, fp, #0
   mov a1, a1 @ nop
   sub sp, fp, #0
   ldr fp, [sp], #4
@@ -373,20 +373,20 @@ void foo() { }
 \item<3-> Pushed on stack for new function call
 \end{itemize}
 
-\begin{block}<4->{}
+\begin{block}<4->{C++}
 \begin{lstlisting}
 void foo() {bar();}
 \end{lstlisting}
 \end{block}
 
-\begin{block}<5->{}
+\begin{block}<5->{ASM (by gcc)}
 \begin{lstlisting}[language=ASM]
-  stmfd sp!, {fp, lr}
+  push {fp, lr}
   add fp, sp, #4
   bl bar()
   mov r0, r0 @ nop
   sub sp, fp, #4
-  ldmfd sp!, {fp, lr}
+  pop {fp, lr}
   bx lr
 \end{lstlisting}
 \end{block}
@@ -403,13 +403,13 @@ void foo() {bar();}
 \item<5-> \lstinline{ip} is an additional scratch register
 \end{itemize}
 
-\begin{block}<5->{}
+\begin{block}<5->{C++}
 \begin{lstlisting}
 int foo(int x, int y) { return x+y; }
 \end{lstlisting}
 \end{block}
 
-\begin{block}<6->{}
+\begin{block}<6->{ASM (by gcc,-O3)}
 \begin{lstlisting}[language=ASM]
   add a1, a1, a2
   bx lr
@@ -429,7 +429,7 @@ int foo(int x, int y) { return x+y; }
 
 \begin{columns}
 \begin{column}{0.55\textwidth}
-\begin{block}<5->{}
+\begin{block}<5->{C++}
 \begin{lstlisting}[basicstyle=\small]
 void bar(int&, int&, 
          int&, int&);
@@ -442,7 +442,7 @@ void foo(int &x, int &y,
 \end{block}
 \end{column}
 \begin{column}{0.45\textwidth}
-\begin{block}<6->{}
+\begin{block}<6->{ASM (by gcc)}
 \begin{lstlisting}[language=ASM,basicstyle=\small]
   push {v1, v2, v3, lr}
   ldr v2, [a4]
@@ -475,8 +475,9 @@ register
 
 \begin{frame}[fragile]
 \frametitle{Creating a coroutine}
+\vspace*{-3ex}
 
-\begin{block}{}
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}[basicstyle=\small]
 struct coroutine
 {
@@ -486,7 +487,6 @@ struct coroutine
   {
       return make_context(this, &func, &executor);
   }
-
   static void executor(coroutine * const this_, 
                        Function *func_p)
   {
@@ -504,7 +504,7 @@ struct coroutine
 \begin{frame}[fragile]
 \frametitle{Make context}
 
-\begin{block}{}
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}[language=ASM, basicstyle=\small]
 make_context_0:
     @_make_context_0(cr* const, void *, void * )
@@ -524,23 +524,24 @@ make_context_0:
 
 \begin{frame}[fragile]
 \frametitle{Context switch}
-\begin{block}<1->{}
+\vspace*{-2ex}
+\begin{block}<1->{\vspace*{-3.2ex}}
 \begin{lstlisting}
 void switch_context_0(void*& sp);
-void yield  (void*& p){switch_context_0(sp);}
-void reenter(void*& p){switch_context_0(sp);}
+void yield  (void*& p){switch_context_0(p);}
+void reenter(void*& p){switch_context_0(p);}
 
 \end{lstlisting}
 \end{block}
-
-\begin{block}<2->{}
+\vspace*{-2ex}
+\begin{block}<2->{\vspace*{-3.2ex}}
 \begin{lstlisting}[language=ASM]
 switch_context_0:
   push {v1-v8, lr} @8
   
   mov v1, sp   @1
   ldr sp, [a1] @2
-  str v1, [a1] @2
+  str v1, [a1] @2	
 
   pop {v1-v8, lr} @8
   bx lr @1  --> overall 22
@@ -550,7 +551,7 @@ switch_context_0:
 
 \begin{frame}[fragile]
 \frametitle{Context switch \lstinline{uint32_t(uint64_t)}}
-\begin{block}{}
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}[basicstyle=\small]
 uint64_t switch_context_1(uint32_t, void*& sp);
 uint32_t switch_context_2(uint64_t, void*& sp);
@@ -573,7 +574,7 @@ uint32_t reenter(uint64_t i, void*& p)
 %uint64_t yield  (uint32_t i, void*& p);
 %\end{lstlisting}
 %\end{block}
-\begin{block}{}
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}[language=ASM, basicstyle=\small]
 switch_context_1:
     @yield(uint32_t, void*) -> uint64_t
@@ -600,7 +601,7 @@ switch_context_1:
 %uint32_t reenter  (uint64_t i, void*& p);
 %\end{lstlisting}
 %\end{block}
-\begin{block}{}
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}[language=ASM, basicstyle=\small]
 switch_context_2:
     @reenter(uint64_t, void*) -> uint32	_t
@@ -625,7 +626,8 @@ switch_context_2:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% THINGY %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{frame}[fragile]
 \frametitle{Statemachine example}
-\begin{block}{}
+\vspace*{-3ex}
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}[basicstyle=\small]
 struct statemachine
 {
@@ -650,7 +652,7 @@ struct statemachine
 
 \begin{frame}[fragile]
 \frametitle{Statemachine example}
-\begin{block}{}
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}[basicstyle=\small]]
 int coroutine(embo::yield_t<int()>& yield)
 {
@@ -664,8 +666,8 @@ int coroutine(embo::yield_t<int()>& yield)
 
 \begin{frame}[fragile]
 \frametitle{Statemachine Assembly}
-
-\begin{block}{}
+\vspace*{-3ex}
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}[language=ASM, basicstyle=\small]
 statemachine::operator()():
   ldr a4, [a1]  @2
@@ -690,14 +692,14 @@ statemachine::operator()():
 
 \begin{frame}[fragile]
 \frametitle{Coroutine Assembly}
-\begin{block}{}
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}[language=ASM, basicstyle=\small]
 coroutine(yield_t&): @14
   push {v1, lr} @1
   mov v1, a1	@1  
   bl f()        @1
   mov a2, v1    @1
-  bl switch_context_1(int, void*) @1+22; 22 for reentry
+  bl switch_context_1(int, void*) @1+22; 22 reentry
   bl g() @1
   mov a2, v1 @1
   bl switch_context_1(int, void*) @1+22
@@ -710,7 +712,9 @@ coroutine(yield_t&): @14
 
 \begin{frame}[fragile]
 \frametitle{Statemachine stack example}
-\begin{block}{}
+\vspace*{-3ex}
+
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}[basicstyle=\small]
 struct statemachine {
   int state = 0;
@@ -734,7 +738,9 @@ struct statemachine {
 
 \begin{frame}[fragile]
 \frametitle{Coroutine stack example}
-\begin{block}{}
+\vspace*{-3ex}
+
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}[basicstyle=\small]
 void cr(embo::yield_t<void()>& yield)
 {
@@ -759,7 +765,8 @@ void cr(embo::yield_t<void()>& yield)
 
 \begin{frame}[fragile]
 \frametitle{Coroutine stack template example}
-\begin{block}{}
+\vspace*{-3ex}
+\begin{block}{\vspace*{-3.2ex}}
 \begin{lstlisting}[basicstyle=\small]
 template<typename Char>
 void cr_impl(embo::yield_t<void()> &yield)
@@ -786,8 +793,7 @@ void cr(embo::yield_t<void()>& yield)
 \frametitle{Summary}
 \begin{itemize}
 \item<1-> www.github.com/klemens-morgenstern/embo.coroutine
-\item<2-> klemens.d.morgenstern@gmail.com
-\item<3-> Any questions?
+\item<2-> Any questions?
 \end{itemize}
 
 \end{frame}
