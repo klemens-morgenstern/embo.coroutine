@@ -403,13 +403,13 @@ void foo() {bar();}
 \item<5-> \lstinline{ip} is an additional scratch register
 \end{itemize}
 
-\begin{block}<5->{C++}
+\begin{block}<6->{C++}
 \begin{lstlisting}
 int foo(int x, int y) { return x+y; }
 \end{lstlisting}
 \end{block}
 
-\begin{block}<6->{ASM (by gcc,-O3)}
+\begin{block}<7->{ASM (by gcc,-O3)}
 \begin{lstlisting}[language=ASM]
   add a1, a1, a2
   bx lr
@@ -469,7 +469,7 @@ void foo(int &x, int &y,
 \item<4-> \lstinline[columns=fixed]{   r12/   ip } Intra procedure scratch 
 \item<5-> \lstinline[columns=fixed]{   r13/   SP } Stack pointer
 \item<6-> \lstinline[columns=fixed]{   r14/   LR } Link Register
-register
+\item<7-> \lstinline[columns=fixed]{   r15/   PC } Program Counter
 \end{itemize}
 \end{frame}
 
@@ -793,7 +793,8 @@ void cr(embo::yield_t<void()>& yield)
 \frametitle{Summary}
 \begin{itemize}
 \item<1-> www.github.com/klemens-morgenstern/embo.coroutine
-\item<2-> Any questions?
+\item<2-> klemens.d.morgenstern@gmail.com
+\item<3-> Any questions?
 \end{itemize}
 
 \end{frame}
